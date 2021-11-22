@@ -7,10 +7,10 @@
     "provider": {
       "name": "aws",
       "runtime": "nodejs12.x",
-      "stage": "develpoment",
       "profile": "zakii",
+      "stage": "development",
       "region": "us-east-1",
-      "stackName": "appsync-serverless-backend-develpoment",
+      "stackName": "appsync-serverless-backend-development",
       "versionFunctions": true,
       "environment": {
         "AWS_PROFILE": "zakii",
@@ -106,6 +106,14 @@
                   "AttributeType": "S"
                 },
                 {
+                  "AttributeName": "publishedYear",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "volume",
+                  "AttributeType": "N"
+                },
+                {
                   "AttributeName": "createdAt",
                   "AttributeType": "S"
                 }
@@ -117,16 +125,32 @@
                   "KeyType": "HASH"
                 },
                 {
-                  "AttributeName": "author",
+                  "AttributeName": "createdAt",
                   "KeyType": "RANGE"
                 }
               ],
               "GlobalSecondaryIndexes": [
                 {
-                  "IndexName": "byOrder",
+                  "IndexName": "byAuthor",
                   "KeySchema": [
                     {
                       "AttributeName": "author",
+                      "KeyType": "HASH"
+                    },
+                    {
+                      "AttributeName": "createdAt",
+                      "KeyType": "RANGE"
+                    }
+                  ],
+                  "Projection": {
+                    "ProjectionType": "ALL"
+                  }
+                },
+                {
+                  "IndexName": "byYear",
+                  "KeySchema": [
+                    {
+                      "AttributeName": "publishedYear",
                       "KeyType": "HASH"
                     },
                     {
@@ -141,10 +165,14 @@
               ],
               "LocalSecondaryIndexes": [
                 {
-                  "IndexName": "byAuthor",
+                  "IndexName": "byVolume",
                   "KeySchema": [
                     {
-                      "AttributeName": "author",
+                      "AttributeName": "bookId",
+                      "KeyType": "HASH"
+                    },
+                    {
+                      "AttributeName": "volume",
                       "KeyType": "RANGE"
                     }
                   ],
@@ -391,7 +419,7 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-appsync-serverless-backend-develpoment-ServerlessDeploymentBucketName"
+              "Name": "sls-appsync-serverless-backend-development-ServerlessDeploymentBucketName"
             }
           }
         }
@@ -479,6 +507,9 @@
         }
       }
     },
+    "custom": {
+      "useDotenv": true
+    },
     "plugins": [
       "serverless-dotenv-plugin"
     ],
@@ -500,6 +531,14 @@
                 "AttributeType": "S"
               },
               {
+                "AttributeName": "publishedYear",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "volume",
+                "AttributeType": "N"
+              },
+              {
                 "AttributeName": "createdAt",
                 "AttributeType": "S"
               }
@@ -511,16 +550,32 @@
                 "KeyType": "HASH"
               },
               {
-                "AttributeName": "author",
+                "AttributeName": "createdAt",
                 "KeyType": "RANGE"
               }
             ],
             "GlobalSecondaryIndexes": [
               {
-                "IndexName": "byOrder",
+                "IndexName": "byAuthor",
                 "KeySchema": [
                   {
                     "AttributeName": "author",
+                    "KeyType": "HASH"
+                  },
+                  {
+                    "AttributeName": "createdAt",
+                    "KeyType": "RANGE"
+                  }
+                ],
+                "Projection": {
+                  "ProjectionType": "ALL"
+                }
+              },
+              {
+                "IndexName": "byYear",
+                "KeySchema": [
+                  {
+                    "AttributeName": "publishedYear",
                     "KeyType": "HASH"
                   },
                   {
@@ -535,10 +590,14 @@
             ],
             "LocalSecondaryIndexes": [
               {
-                "IndexName": "byAuthor",
+                "IndexName": "byVolume",
                 "KeySchema": [
                   {
-                    "AttributeName": "author",
+                    "AttributeName": "bookId",
+                    "KeyType": "HASH"
+                  },
+                  {
+                    "AttributeName": "volume",
                     "KeyType": "RANGE"
                   }
                 ],
@@ -791,6 +850,9 @@
       "plugins": {
         "$ref": "$[\"service\"][\"plugins\"]"
       },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
+      },
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -802,7 +864,7 @@
     "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "artifactDirectoryName": "serverless/appsync-serverless-backend/develpoment/1637085154886-2021-11-16T17:52:34.886Z",
+    "artifactDirectoryName": "serverless/appsync-serverless-backend/development/1637601977051-2021-11-22T17:26:17.051Z",
     "artifact": ""
   }
 }

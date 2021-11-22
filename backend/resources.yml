@@ -8,16 +8,20 @@ booksTable:
         AttributeType: "S"
       - AttributeName: "author"
         AttributeType: "S"
+      - AttributeName: "publishedYear"
+        AttributeType: "S"
+      - AttributeName: "volume"
+        AttributeType: "N"
       - AttributeName: "createdAt"
         AttributeType: "S"
     BillingMode: "PAY_PER_REQUEST"
     KeySchema:
       - AttributeName: "bookId"
         KeyType: "HASH" #primary key
-      - AttributeName: "author"
+      - AttributeName: "createdAt"
         KeyType: "RANGE" #sort key
     GlobalSecondaryIndexes:
-      - IndexName: "byOrder"
+      - IndexName: "byAuthor"
         KeySchema:
           - AttributeName: "author"
             KeyType: "HASH" #primary key
@@ -25,10 +29,20 @@ booksTable:
             KeyType: "RANGE" #sort key
         Projection:
           ProjectionType: "ALL"
-    LocalSecondaryIndexes:
-      - IndexName: "byAuthor"
+      - IndexName: "byYear"
         KeySchema:
-          - AttributeName: "author"
+          - AttributeName: "publishedYear"
+            KeyType: "HASH" #primary key
+          - AttributeName: "createdAt"
+            KeyType: "RANGE" #sort key
+        Projection:
+          ProjectionType: "ALL"
+    LocalSecondaryIndexes:
+      - IndexName: "byVolume"
+        KeySchema:
+          - AttributeName: "bookId"
+            KeyType: "HASH" #primary key
+          - AttributeName: "volume"
             KeyType: "RANGE" #sort key
         Projection:
           ProjectionType: "ALL"

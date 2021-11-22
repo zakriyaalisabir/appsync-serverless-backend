@@ -85,6 +85,14 @@
             "AttributeType": "S"
           },
           {
+            "AttributeName": "publishedYear",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "volume",
+            "AttributeType": "N"
+          },
+          {
             "AttributeName": "createdAt",
             "AttributeType": "S"
           }
@@ -96,16 +104,32 @@
             "KeyType": "HASH"
           },
           {
-            "AttributeName": "author",
+            "AttributeName": "createdAt",
             "KeyType": "RANGE"
           }
         ],
         "GlobalSecondaryIndexes": [
           {
-            "IndexName": "byOrder",
+            "IndexName": "byAuthor",
             "KeySchema": [
               {
                 "AttributeName": "author",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "createdAt",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          },
+          {
+            "IndexName": "byYear",
+            "KeySchema": [
+              {
+                "AttributeName": "publishedYear",
                 "KeyType": "HASH"
               },
               {
@@ -120,10 +144,14 @@
         ],
         "LocalSecondaryIndexes": [
           {
-            "IndexName": "byAuthor",
+            "IndexName": "byVolume",
             "KeySchema": [
               {
-                "AttributeName": "author",
+                "AttributeName": "bookId",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "volume",
                 "KeyType": "RANGE"
               }
             ],
@@ -370,7 +398,7 @@
         "Ref": "ServerlessDeploymentBucket"
       },
       "Export": {
-        "Name": "sls-appsync-serverless-backend-develpoment-ServerlessDeploymentBucketName"
+        "Name": "sls-appsync-serverless-backend-development-ServerlessDeploymentBucketName"
       }
     }
   }

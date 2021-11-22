@@ -4,21 +4,37 @@ frameworkVersion: "2"
 
 plugins:
   - serverless-dotenv-plugin
-  # - serverless-appsync-plugin
+  - serverless-appsync-plugin #https://www.serverless.com/plugins/serverless-appsync-plugin
   # - serverless-appsync-offline
   # - serverless-offline #serverless-offline needs to be last in the list
   # - custom-serverless-plugin #always place custom plugins in the end
-
-# custom:
-#   appsync:
-
+    
 provider:
   name: aws
   runtime: nodejs12.x
-  stage: ${env:NODE_ENV,opt:stage,"dev"}
   profile: ${env:AWS_PROFILE,opt:profile}
+  stage: ${env:NODE_ENV,opt:stage,"development"}
   region: ${env:AWS_REGION,opt:region,"us-east-1"}
   stackName: ${self:service}-${self:provider.stage}
 
+custom:
+  useDotenv: true
+  appsync:
+    name: book-store-api
+    authenticationType: AMAZON_COGNITO_USER_POOLS
+    schema: schema.graphql
+    userPoolConfig:
+      awsRegion: ${env:AWS_REGION,opt:region,"us-east-1"}
+      defaultAction: ALLOW # required # ALLOW or DENY
+      userPoolId: !Ref cognitoUserPool # required # user pool ID
+    mappingTemplatesLocation: vtl-mapping-templates
+    mappingTemplates:
+      - dataSource: # data source name
+        type: # type name in schema (e.g. Query, Mutation, Subscription, or a custom type e.g. User)
+        field: getUserInfo
+        request: # request mapping template name | defaults to `defaultMappingTemplates.request` or {type}.{field}.request.vtl
+        response: 
+
 resources:
   Resources: ${file(resources.yml)}
+  # Outputs:
