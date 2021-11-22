@@ -1,0 +1,377 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ServerlessDeploymentBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ServerlessDeploymentBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "booksTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "books",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "bookId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "author",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "createdAt",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "bookId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "author",
+            "KeyType": "RANGE"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "byOrder",
+            "KeySchema": [
+              {
+                "AttributeName": "author",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "createdAt",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "LocalSecondaryIndexes": [
+          {
+            "IndexName": "byAuthor",
+            "KeySchema": [
+              {
+                "AttributeName": "author",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "books-table"
+          }
+        ]
+      }
+    },
+    "ordersTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "orders",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "orderId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "bookId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "createdAt",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "orderId",
+            "KeyType": "RANGE"
+          }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "byOrder",
+            "KeySchema": [
+              {
+                "AttributeName": "bookId",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "createdAt",
+                "KeyType": "RANGE"
+              }
+            ],
+            "Projection": {
+              "ProjectionType": "ALL"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "orders-table"
+          }
+        ]
+      }
+    },
+    "cognitoUserPool": {
+      "Type": "AWS::Cognito::UserPool",
+      "Properties": {
+        "UserPoolName": "BookStoreUserPool",
+        "UsernameAttributes": [
+          "email"
+        ]
+      }
+    },
+    "cognitoUserPoolClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "ClientName": "WebApiClient",
+        "UserPoolId": {
+          "Ref": "cognitoUserPool"
+        }
+      }
+    },
+    "cognitoAdminGroup": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "Description": "Admins so they can create, read, update and delete records from db",
+        "GroupName": "Admin",
+        "Precedence": 0,
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "iamRoleForCognitoAdminGroup",
+            "Arn"
+          ]
+        },
+        "UserPoolId": {
+          "Ref": "cognitoUserPool"
+        }
+      }
+    },
+    "iamRoleForCognitoAdminGroup": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "BookStoreAdminRole",
+        "Description": "IAM Role For Cognito Admin Group",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": [
+                  "cognito-identity.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRoleWithWebIdentity"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "BookStoreAdminPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "dynamodb:*",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "booksTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ordersTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "cognitoCustomerGroup": {
+      "Type": "AWS::Cognito::UserPoolGroup",
+      "Properties": {
+        "Description": "Customer so they can only read records from db",
+        "GroupName": "Customer",
+        "Precedence": 1,
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "iamRoleForCognitoCustomerGroup",
+            "Arn"
+          ]
+        },
+        "UserPoolId": {
+          "Ref": "cognitoUserPool"
+        }
+      }
+    },
+    "iamRoleForCognitoCustomerGroup": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "BookStoreCustomerRole",
+        "Description": "IAM Role For Cognito Customer Group",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": [
+                  "cognito-identity.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRoleWithWebIdentity"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "BookStoreCustomerPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "dynamodb:*",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ordersTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:Query",
+                    "dynamodb:BatchGetItem"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "booksTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      },
+      "Export": {
+        "Name": "sls-appsync-serverless-backend-develpoment-ServerlessDeploymentBucketName"
+      }
+    }
+  }
+}

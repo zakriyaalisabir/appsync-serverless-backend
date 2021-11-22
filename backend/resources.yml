@@ -1,0 +1,168 @@
+# books table
+booksTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${env:BOOKS_DYNAMODB_TABLE}
+    AttributeDefinitions:
+      - AttributeName: "bookId"
+        AttributeType: "S"
+      - AttributeName: "author"
+        AttributeType: "S"
+      - AttributeName: "createdAt"
+        AttributeType: "S"
+    BillingMode: "PAY_PER_REQUEST"
+    KeySchema:
+      - AttributeName: "bookId"
+        KeyType: "HASH" #primary key
+      - AttributeName: "author"
+        KeyType: "RANGE" #sort key
+    GlobalSecondaryIndexes:
+      - IndexName: "byOrder"
+        KeySchema:
+          - AttributeName: "author"
+            KeyType: "HASH" #primary key
+          - AttributeName: "createdAt"
+            KeyType: "RANGE" #sort key
+        Projection:
+          ProjectionType: "ALL"
+    LocalSecondaryIndexes:
+      - IndexName: "byAuthor"
+        KeySchema:
+          - AttributeName: "author"
+            KeyType: "RANGE" #sort key
+        Projection:
+          ProjectionType: "ALL"
+    Tags:
+      - Key: "Name"
+        Value: "books-table"
+
+# orders table
+ordersTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: ${env:ORDERS_DYNAMODB_TABLE}
+    AttributeDefinitions:
+      - AttributeName: "userId"
+        AttributeType: "S"
+      - AttributeName: "orderId"
+        AttributeType: "S"
+      - AttributeName: "bookId"
+        AttributeType: "S"
+      - AttributeName: "createdAt"
+        AttributeType: "S"
+    BillingMode: "PAY_PER_REQUEST"
+    KeySchema:
+      - AttributeName: "userId"
+        KeyType: "HASH" #primary key
+      - AttributeName: "orderId"
+        KeyType: "RANGE" #sort key
+    # LocalSecondaryIndexes:
+    #   - LocalSecondaryIndex
+    GlobalSecondaryIndexes:
+      - IndexName: "byOrder"
+        KeySchema:
+          - AttributeName: "bookId"
+            KeyType: "HASH" #primary key
+          - AttributeName: "createdAt"
+            KeyType: "RANGE" #sort key
+        Projection:
+          ProjectionType: "ALL"
+        # ProvisionedThroughput: # not required
+        #   ReadCapacityUnits: 0 #default RCU if read/write capacity mode is PAY_PER_REQUEST
+        #   WriteCapacityUnits: 0 #default WCU if read/write capacity mode is PAY_PER_REQUEST
+    Tags:
+      - Key: "Name"
+        Value: "orders-table"
+
+# cognito user pool
+cognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UserPoolName: "BookStoreUserPool"
+    UsernameAttributes:
+      - email
+
+# cognito user pool client
+cognitoUserPoolClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties:
+    ClientName: "WebApiClient"
+    UserPoolId: !Ref cognitoUserPool
+
+# cognito user pool admin group
+cognitoAdminGroup:
+  Type: AWS::Cognito::UserPoolGroup
+  Properties:
+    Description: "Admins so they can create, read, update and delete records from db"
+    GroupName: "Admin"
+    Precedence: 0
+    RoleArn: !GetAtt iamRoleForCognitoAdminGroup.Arn
+    UserPoolId: !Ref cognitoUserPool
+
+# IAM role for admins
+iamRoleForCognitoAdminGroup:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: "BookStoreAdminRole"
+    Description: "IAM Role For Cognito Admin Group"
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+              - "cognito-identity.amazonaws.com"
+          Action:
+            - "sts:AssumeRoleWithWebIdentity"
+    Policies:
+      - PolicyName: BookStoreAdminPolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: "dynamodb:*"
+              Resource:
+                - !GetAtt booksTable.Arn
+                - !GetAtt ordersTable.Arn
+
+# cognito user pool customer group
+cognitoCustomerGroup:
+  Type: AWS::Cognito::UserPoolGroup
+  Properties:
+    Description: "Customer so they can only read records from db"
+    GroupName: "Customer"
+    Precedence: 1
+    RoleArn: !GetAtt iamRoleForCognitoCustomerGroup.Arn
+    UserPoolId: !Ref cognitoUserPool
+
+# IAM role for customers
+iamRoleForCognitoCustomerGroup:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: "BookStoreCustomerRole"
+    Description: "IAM Role For Cognito Customer Group"
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+              - "cognito-identity.amazonaws.com"
+          Action:
+            - "sts:AssumeRoleWithWebIdentity"
+    Policies:
+      - PolicyName: BookStoreCustomerPolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: "dynamodb:*"
+              Resource:
+                - !GetAtt ordersTable.Arn
+            - Effect: Allow
+              Action:
+                - "dynamodb:GetItem"
+                - "dynamodb:Query"
+                - "dynamodb:BatchGetItem"
+              Resource:
+                - !GetAtt booksTable.Arn

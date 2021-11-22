@@ -1,0 +1,24 @@
+service: appsync-serverless-backend
+
+frameworkVersion: "2"
+
+plugins:
+  - serverless-dotenv-plugin
+  # - serverless-appsync-plugin
+  # - serverless-appsync-offline
+  # - serverless-offline #serverless-offline needs to be last in the list
+  # - custom-serverless-plugin #always place custom plugins in the end
+
+# custom:
+#   appsync:
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${env:NODE_ENV,opt:stage,"dev"}
+  profile: ${env:AWS_PROFILE,opt:profile}
+  region: ${env:AWS_REGION,opt:region,"us-east-1"}
+  stackName: ${self:service}-${self:provider.stage}
+
+resources:
+  Resources: ${file(resources.yml)}

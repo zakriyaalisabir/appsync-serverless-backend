@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "appsync-serverless-backend-demo",
+  "main": "handler.js",
+  "dependencies": {},
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "serverless-appsync-plugin": "^1.12.1",
+    "serverless-dotenv-plugin": "^3.10.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sls:print": "serverless print",
+    "deploy": "sls deploy",
+    "deploy:dry": "sls deploy --noDeploy",
+    "deploy:dev": "sls deploy --stage dev --aws-profile zakii",
+    "deploy:prod": "sls deploy --stage prod --aws-profile <TBD>"
+  },
+  "author": "zakriyaalisabir",
+  "license": "MIT"
+}
