@@ -180,3 +180,30 @@ iamRoleForCognitoCustomerGroup:
                 - "dynamodb:BatchGetItem"
               Resource:
                 - !GetAtt booksTable.Arn
+
+# IAM role for AppSyncCloudWatchLogs
+iamRoleForAppSyncCloudWatchLogs:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: "AppSyncCloudWatchLogsRole"
+    Description: "IAM Role For Allowing AppSync to push logs to CloudWatch"
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - "appsync.amazonaws.com"
+          Action:
+            - "sts:AssumeRole"
+    Policies:
+      - PolicyName: AppSyncCloudWatchLogsPolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Resource: "*"
