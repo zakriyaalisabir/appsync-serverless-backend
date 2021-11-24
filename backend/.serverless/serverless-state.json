@@ -17,7 +17,10 @@
         "AWS_REGION": "us-east-1",
         "NODE_ENV": "develpoment",
         "BOOKS_DYNAMODB_TABLE": "books",
-        "ORDERS_DYNAMODB_TABLE": "orders"
+        "ORDERS_DYNAMODB_TABLE": "orders",
+        "APP_SYNC_API_NAME": "book-store-api",
+        "BOOKS_DYNAMODB_TABLE_SOURCE": "booksSource",
+        "ORDERS_DYNAMODB_TABLE_SOURCE": "ordersSource"
       },
       "compiledCloudFormationTemplate": {
         "AWSTemplateFormatVersion": "2010-09-09",
@@ -411,6 +414,261 @@
                 }
               ]
             }
+          },
+          "iamRoleForAppSyncCloudWatchLogs": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "RoleName": "AppSyncCloudWatchLogsRole",
+              "Description": "IAM Role For Allowing AppSync to push logs to CloudWatch",
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "appsync.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "AppSyncCloudWatchLogsPolicy",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogGroup",
+                          "logs:CreateLogStream",
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": "*"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "GraphQlApi": {
+            "Type": "AWS::AppSync::GraphQLApi",
+            "Properties": {
+              "Name": "book-store-api",
+              "AuthenticationType": "AMAZON_COGNITO_USER_POOLS",
+              "AdditionalAuthenticationProviders": [],
+              "UserPoolConfig": {
+                "AwsRegion": "us-east-1",
+                "UserPoolId": {
+                  "Ref": "cognitoUserPool"
+                },
+                "DefaultAction": "ALLOW"
+              },
+              "LogConfig": {
+                "CloudWatchLogsRoleArn": {
+                  "Fn::GetAtt": [
+                    "iamRoleForAppSyncCloudWatchLogs",
+                    "Arn"
+                  ]
+                },
+                "FieldLogLevel": "ALL",
+                "ExcludeVerboseContent": false
+              },
+              "XrayEnabled": true
+            }
+          },
+          "GraphQlApiLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "/aws/appsync/apis",
+                    {
+                      "Fn::GetAtt": [
+                        "GraphQlApi",
+                        "ApiId"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            }
+          },
+          "GraphQlSchema": {
+            "Type": "AWS::AppSync::GraphQLSchema",
+            "Properties": {
+              "Definition": "schema {\n  query: Query\n  mutation: Mutation\n}\n\ntype Mutation {\n  createBook(newBook: BookInput): Book! @aws_auth(cognito_groups: [\"Admin\"])\n  createOrder(newOrder: OrderInput): Boolean! @aws_auth(cognito_groups: [\"Customer\"])\n}\n\ntype Query {\n  getBookById(id: ID!): Book!\n  listBooks(limit: Int!, page: Int!): BooksPage!\n  getOrderById(id: ID!): OrderItem!\n  myOrders(limit: Int!, page: Int!): OrdersPage!\n}\n\ninput OrderInput {\n  items: [OrderItemInput]\n}\n\ninput OrderItemInput {\n  bookId: ID!\n  quantity: Int!\n}\n\ninput BookInput {\n  title: String!\n  description: String\n  imageUrl: AWSURL\n  author: String!\n  price: Float!\n  volume: Int!\n  status: BookStatus\n}\n\nenum BookStatus {\n  Available\n  NotAvailable\n}\n\ntype OrdersPage {\n  orders: [OrderItem]\n  page: Int\n}\n\ntype OrderItem {\n  userId: ID!\n  orderId: ID!\n  book: Book!\n  quantity: Int!\n}\n\ntype BooksPage {\n  books: [Book]\n  page: Int\n}\n\ntype Book {\n  bookId: ID!\n  title: String!\n  description: String\n  imageUrl: AWSURL\n  author: String!\n  price: Float!\n  volume: Int!\n  createedAt: AWSDateTime!\n  updatedAt: AWSDateTime!\n}",
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              }
+            }
+          },
+          "GraphQlDsbooksSourceRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "appsync.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "GraphQlDsbooksSourcePolicy",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Action": [
+                          "dynamodb:DeleteItem",
+                          "dynamodb:GetItem",
+                          "dynamodb:PutItem",
+                          "dynamodb:Query",
+                          "dynamodb:Scan",
+                          "dynamodb:UpdateItem",
+                          "dynamodb:BatchGetItem",
+                          "dynamodb:BatchWriteItem",
+                          "dynamodb:ConditionCheckItem"
+                        ],
+                        "Effect": "Allow",
+                        "Resource": [
+                          {
+                            "Fn::Join": [
+                              ":",
+                              [
+                                "arn",
+                                "aws",
+                                "dynamodb",
+                                "us-east-1",
+                                {
+                                  "Ref": "AWS::AccountId"
+                                },
+                                {
+                                  "Fn::Join": [
+                                    "/",
+                                    [
+                                      "table",
+                                      {
+                                        "Ref": "booksTable"
+                                      }
+                                    ]
+                                  ]
+                                }
+                              ]
+                            ]
+                          },
+                          {
+                            "Fn::Join": [
+                              "/",
+                              [
+                                {
+                                  "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlDsbooksSourceRole\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][0][\"Resource\"][0]"
+                                },
+                                "*"
+                              ]
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "GraphQlDsbooksSource": {
+            "Type": "AWS::AppSync::DataSource",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "Name": "booksSource",
+              "Type": "AMAZON_DYNAMODB",
+              "ServiceRoleArn": {
+                "Fn::GetAtt": [
+                  "GraphQlDsbooksSourceRole",
+                  "Arn"
+                ]
+              },
+              "DynamoDBConfig": {
+                "AwsRegion": "us-east-1",
+                "TableName": {
+                  "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlDsbooksSourceRole\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][0][\"Resource\"][0][\"Fn::Join\"][1][5][\"Fn::Join\"][1][1]"
+                },
+                "UseCallerCredentials": false,
+                "Versioned": false
+              }
+            }
+          },
+          "GraphQlResolverQuerygetBookById": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Query",
+              "FieldName": "getBookById",
+              "RequestMappingTemplate": "{\r\n    \"version\" : \"2017-02-28\",\r\n    \"operation\" : \"GetItem\",\r\n    \"key\" : {\r\n        \"bookId\" : $util.dynamodb.toDynamoDBJson($ctx.args.id)\r\n    }\r\n}",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result)",
+              "Kind": "UNIT",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsbooksSource",
+                  "Name"
+                ]
+              }
+            }
+          },
+          "GraphQlResolverMutationcreateBook": {
+            "Type": "AWS::AppSync::Resolver",
+            "DependsOn": "GraphQlSchema",
+            "Properties": {
+              "ApiId": {
+                "Fn::GetAtt": [
+                  "GraphQlApi",
+                  "ApiId"
+                ]
+              },
+              "TypeName": "Mutation",
+              "FieldName": "createBook",
+              "RequestMappingTemplate": "{\r\n    \"version\" : \"2017-02-28\",\r\n    \"operation\" : \"PutItem\",\r\n    \"key\": {\r\n        \"bookId\" : $util.dynamodb.toDynamoDBJson($util.autoId())\r\n    },\r\n    \"attributeValues\" : {\r\n        \"title\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.title)\r\n        \"description\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.description)\r\n        \"imageUrl\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.imageUrl)\r\n        \"author\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.author)\r\n        \"price\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.price)\r\n        \"volume\": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.volume)\r\n        \"createdAt\": $util.dynamodb.toDynamoDBJson($util.time.nowEpochMilliSeconds())\r\n        \"updatedAt\": $util.dynamodb.toDynamoDBJson($util.time.nowEpochMilliSeconds())\r\n    }\r\n}",
+              "ResponseMappingTemplate": "$util.toJson($ctx.result)",
+              "Kind": "UNIT",
+              "DataSourceName": {
+                "Fn::GetAtt": [
+                  "GraphQlDsbooksSource",
+                  "Name"
+                ]
+              }
+            }
           }
         },
         "Outputs": {
@@ -420,6 +678,32 @@
             },
             "Export": {
               "Name": "sls-appsync-serverless-backend-development-ServerlessDeploymentBucketName"
+            }
+          },
+          "GraphQlApiId": {
+            "Value": {
+              "Fn::GetAtt": [
+                "GraphQlApi",
+                "ApiId"
+              ]
+            },
+            "Export": {
+              "Name": {
+                "Fn::Sub": "${AWS::StackName}-GraphQlApiId"
+              }
+            }
+          },
+          "GraphQlApiUrl": {
+            "Value": {
+              "Fn::GetAtt": [
+                "GraphQlApi",
+                "GraphQLUrl"
+              ]
+            },
+            "Export": {
+              "Name": {
+                "Fn::Sub": "${AWS::StackName}-GraphQlApiUrl"
+              }
             }
           }
         }
@@ -508,10 +792,58 @@
       }
     },
     "custom": {
-      "useDotenv": true
+      "useDotenv": true,
+      "appSync": {
+        "name": "book-store-api",
+        "authenticationType": "AMAZON_COGNITO_USER_POOLS",
+        "schema": "schema.graphql",
+        "userPoolConfig": {
+          "awsRegion": "us-east-1",
+          "defaultAction": "ALLOW",
+          "userPoolId": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlApi\"][\"Properties\"][\"UserPoolConfig\"][\"UserPoolId\"]"
+          }
+        },
+        "logConfig": {
+          "loggingRoleArn": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlApi\"][\"Properties\"][\"LogConfig\"][\"CloudWatchLogsRoleArn\"]"
+          },
+          "level": "ALL",
+          "excludeVerboseContent": false
+        },
+        "xrayEnabled": true,
+        "mappingTemplatesLocation": "vtl-mapping-templates",
+        "mappingTemplates": [
+          {
+            "dataSource": "booksSource",
+            "type": "Query",
+            "field": "getBookById",
+            "request": "Query.getBookById.request.vtl",
+            "response": "Query.default.response.vtl"
+          },
+          {
+            "dataSource": "booksSource",
+            "type": "Mutation",
+            "field": "createBook"
+          }
+        ],
+        "dataSources": [
+          {
+            "type": "AMAZON_DYNAMODB",
+            "name": "booksSource",
+            "config": {
+              "tableName": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"GraphQlDsbooksSourceRole\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][0][\"Resource\"][0][\"Fn::Join\"][1][5][\"Fn::Join\"][1][1]"
+              }
+            },
+            "description": null
+          }
+        ]
+      }
     },
     "plugins": [
-      "serverless-dotenv-plugin"
+      "serverless-dotenv-plugin",
+      "serverless-appsync-plugin"
     ],
     "pluginsData": {},
     "functions": {},
@@ -836,6 +1168,48 @@
               }
             ]
           }
+        },
+        "iamRoleForAppSyncCloudWatchLogs": {
+          "Type": "AWS::IAM::Role",
+          "Properties": {
+            "RoleName": "AppSyncCloudWatchLogsRole",
+            "Description": "IAM Role For Allowing AppSync to push logs to CloudWatch",
+            "AssumeRolePolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [
+                      "appsync.amazonaws.com"
+                    ]
+                  },
+                  "Action": [
+                    "sts:AssumeRole"
+                  ]
+                }
+              ]
+            },
+            "Policies": [
+              {
+                "PolicyName": "AppSyncCloudWatchLogsPolicy",
+                "PolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents"
+                      ],
+                      "Resource": "*"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         }
       },
       "Outputs": {}
@@ -850,11 +1224,11 @@
       "plugins": {
         "$ref": "$[\"service\"][\"plugins\"]"
       },
-      "custom": {
-        "$ref": "$[\"service\"][\"custom\"]"
-      },
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
       },
       "resources": {
         "$ref": "$[\"service\"][\"resources\"]"
@@ -864,7 +1238,7 @@
     "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "artifactDirectoryName": "serverless/appsync-serverless-backend/development/1637601977051-2021-11-22T17:26:17.051Z",
+    "artifactDirectoryName": "serverless/appsync-serverless-backend/development/1637678686986-2021-11-23T14:44:46.986Z",
     "artifact": ""
   }
 }

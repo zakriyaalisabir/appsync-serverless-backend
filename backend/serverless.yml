@@ -8,7 +8,7 @@ plugins:
   # - serverless-appsync-offline
   # - serverless-offline #serverless-offline needs to be last in the list
   # - custom-serverless-plugin #always place custom plugins in the end
-    
+
 provider:
   name: aws
   runtime: nodejs12.x
@@ -19,21 +19,38 @@ provider:
 
 custom:
   useDotenv: true
-  appsync:
-    name: book-store-api
+  appSync:
+    name: ${env:APP_SYNC_API_NAME}
     authenticationType: AMAZON_COGNITO_USER_POOLS
     schema: schema.graphql
     userPoolConfig:
       awsRegion: ${env:AWS_REGION,opt:region,"us-east-1"}
       defaultAction: ALLOW # required # ALLOW or DENY
       userPoolId: !Ref cognitoUserPool # required # user pool ID
+    logConfig:
+      loggingRoleArn: !GetAtt iamRoleForAppSyncCloudWatchLogs.Arn 
+      level: ALL # Logging Level: NONE | ERROR | ALL
+      excludeVerboseContent: false
+    xrayEnabled: true # Bool, Optional. Enable X-Ray. disabled by default.
     mappingTemplatesLocation: vtl-mapping-templates
     mappingTemplates:
-      - dataSource: # data source name
-        type: # type name in schema (e.g. Query, Mutation, Subscription, or a custom type e.g. User)
-        field: getUserInfo
-        request: # request mapping template name | defaults to `defaultMappingTemplates.request` or {type}.{field}.request.vtl
-        response: 
+      - dataSource: ${env:BOOKS_DYNAMODB_TABLE_SOURCE} # data source name
+        type: Query # (e.g. Query, Mutation, Subscription, or a custom type e.g. User)
+        field: getBookById
+        request: Query.getBookById.request.vtl
+        response: Query.default.response.vtl
+      - dataSource: ${env:BOOKS_DYNAMODB_TABLE_SOURCE}
+        type: Mutation
+        field: createBook
+        # request: will by default look for Mutation.createBook.request.vtl (i.e. {type}.{field}.request.vtl)
+        # response: will by default look for Mutation.createBook.request.vtl (i.e. {type}.{field}.response.vtl)
+    dataSources:
+      - type: AMAZON_DYNAMODB
+        name: ${env:BOOKS_DYNAMODB_TABLE_SOURCE} # data source name
+        description: # DynamoDB Table Description
+        config:
+          tableName: !Ref booksTable
+          # versioned: false # (default, not required)
 
 resources:
   Resources: ${file(resources.yml)}
