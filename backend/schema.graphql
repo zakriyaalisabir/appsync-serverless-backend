@@ -5,12 +5,13 @@ schema {
 
 type Mutation {
     createBook(newBook: BookInput): Book! @aws_auth(cognito_groups: ["Admin"])
-    createOrder(newOrder: OrderInput): Boolean!
+    createOrder(newOrder: OrderInput): Boolean! @aws_auth(cognito_groups: ["Customer"])
 }
 
 type Query {
-    getBookById(bookId: ID!): Book!
+    getBookById(id: ID!): Book!
     listBooks(limit:Int!, page: Int!): BooksPage!
+    getOrderById(id: ID!): OrderItem!
     myOrders(limit:Int!, page: Int!): OrdersPage!
 }
 
@@ -21,7 +22,6 @@ input OrderInput {
 input OrderItemInput {
     bookId: ID!
     quantity: Int!
-
 }
 
 input BookInput {
@@ -31,6 +31,12 @@ input BookInput {
     author: String!
     price: Float!
     volume: Int!
+    status: BookStatus 
+}
+
+enum BookStatus {
+    Available
+    NotAvailable
 }
 
 type OrdersPage {
@@ -38,11 +44,13 @@ type OrdersPage {
     page: Int
 }
 
-type OrderItem {
+type OrderItem implements CreateUpdateI {
     userId: ID!
     orderId: ID!
     book: Book!
     quantity: Int!    
+    createedAt: AWSDateTime!
+    updatedAt: AWSDateTime!
 }
 
 type BooksPage {
@@ -50,7 +58,7 @@ type BooksPage {
     page: Int
 }
 
-type Book {
+type Book implements CreateUpdateI {
     bookId: ID!
     title: String!
     description: String
@@ -58,6 +66,11 @@ type Book {
     author: String!
     price: Float!
     volume: Int!
+    createedAt: AWSDateTime!
+    updatedAt: AWSDateTime!
+}
+
+interface CreateUpdateI {
     createedAt: AWSDateTime!
     updatedAt: AWSDateTime!
 }
