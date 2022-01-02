@@ -16,6 +16,7 @@
     "destroy": "sls remove",
     "deploy:dry": "sls deploy --noDeploy",
     "deploy:dev": "sls deploy --stage development --aws-profile zakii",
+    "deploy:dev:debug": "set SLS_DEBUG=* && sls deploy --stage development --aws-profile zakii",
     "deploy:prod": "sls deploy --stage prod --aws-profile <TBD>"
   },
   "author": "zakriyaalisabir",
