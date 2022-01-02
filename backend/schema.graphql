@@ -27,7 +27,7 @@ input OrderItemInput {
 input BookInput {
     title: String!
     description: String
-    imageUrl: AWSURL
+    imageUrl: AWSURL!
     author: String!
     price: Float!
     volume: Int!
@@ -49,8 +49,8 @@ type OrderItem implements CreateUpdateI {
     orderId: ID!
     book: Book!
     quantity: Int!    
-    createedAt: AWSDateTime!
-    updatedAt: AWSDateTime!
+    createedAt: String!
+    updatedAt: String!
 }
 
 type BooksPage {
@@ -66,11 +66,11 @@ type Book implements CreateUpdateI {
     author: String!
     price: Float!
     volume: Int!
-    createedAt: AWSDateTime!
-    updatedAt: AWSDateTime!
+    createedAt: String!
+    updatedAt: String!
 }
 
 interface CreateUpdateI {
-    createedAt: AWSDateTime!
-    updatedAt: AWSDateTime!
+    createedAt: String!
+    updatedAt: String!
 }
