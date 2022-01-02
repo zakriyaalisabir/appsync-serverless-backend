@@ -7,7 +7,7 @@
     "attributeValues" : {
         "title": $util.dynamodb.toDynamoDBJson("$ctx.args.newBook.title"),
         "description": $util.dynamodb.toDynamoDBJson("$ctx.args.newBook.description"),
-        "imageUrl": $util.dynamodb.toDynamoDBJson("$ctx.args.newBook.imageUrl"),
+        "imageUrl": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.imageUrl),
         "author": $util.dynamodb.toDynamoDBJson("$ctx.args.newBook.author"),
         "price": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.price),
         "volume": $util.dynamodb.toDynamoDBJson($ctx.args.newBook.volume),
